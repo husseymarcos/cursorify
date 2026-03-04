@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "Cursorify – Image Grid Stylizer",
   description:
     "Turn any image into a high‑contrast, grid‑style composition inspired by Cursor.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
