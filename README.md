@@ -9,6 +9,14 @@ Turn any image into a high‑contrast, pixel‑style composition (a dense grid o
 - **Live preview**: Tweak settings (e.g. grid density / contrast, depending on implementation) and see the result immediately.
 - **Export**: Download the transformed image (e.g. as PNG) for wallpapers, posters, or sharing.
 
+### Example
+
+Original vs. Cursorified output for the same image:
+
+| Original image | Cursorified image |
+| ------------- | ----------------- |
+| ![Original example](docs/original.png) | ![Cursorified example](docs/cursorified.png) |
+
 ### Getting started
 
 1. **Install dependencies**
