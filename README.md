@@ -15,11 +15,11 @@ Original vs. Cursorified output for the same image:
 
 **Original image**
 
-![Original example](docs/original.jpg)
+<img src="docs/original.jpg" alt="Original example" width="400" />
 
 **Cursorified image**
 
-![Cursorified example](docs/cursorified.png)
+<img src="docs/cursorified.png" alt="Cursorified example" width="400" />
 
 ### Getting started
 
