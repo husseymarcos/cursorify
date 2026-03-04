@@ -15,7 +15,7 @@ Original vs. Cursorified output for the same image:
 
 | Original image | Cursorified image |
 | ------------- | ----------------- |
-| ![Original example](docs/original.png) | ![Cursorified example](docs/cursorified.png) |
+| ![Original example](docs/original.jpg) | ![Cursorified example](docs/cursorified.png) |
 
 ### Getting started
 
