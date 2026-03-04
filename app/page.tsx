@@ -1,64 +1,218 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { HeroPanel } from "./components/HeroPanel";
+import { UploaderPanel } from "./components/UploaderPanel";
+
+type StylizedPoint = {
+  x: number;
+  y: number;
+  radius: number;
+  opacity: number;
+};
+
+const MAX_PREVIEW_SIZE = 480;
+const GRID_SIZE = 80;
+const BACKGROUND_COLOR = "#050505";
+const FOREGROUND_COLOR = "#f5f5f5";
 
 export default function Home() {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [points, setPoints] = useState<StylizedPoint[] | null>(null);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [objectUrl]);
+
+  const handleFileChange = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const f = files[0];
+    if (!f.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    setError(null);
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    setObjectUrl(URL.createObjectURL(f));
+    setPoints(null);
+  }, [objectUrl]);
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+        handleFileChange(event.dataTransfer.files);
+        event.dataTransfer.clearData();
+      }
+    },
+    [handleFileChange],
+  );
+
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  const generatePointsFromImage = useCallback(
+    (img: HTMLImageElement) => {
+      const offscreen = document.createElement("canvas");
+      const ctx = offscreen.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+
+      const scale =
+        img.width > img.height
+          ? MAX_PREVIEW_SIZE / img.width
+          : MAX_PREVIEW_SIZE / img.height;
+
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
+
+      offscreen.width = width;
+      offscreen.height = height;
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+
+      const cols = GRID_SIZE;
+      const rows = Math.round((GRID_SIZE * height) / width);
+
+      const cellW = width / cols;
+      const cellH = height / rows;
+
+      const newPoints: StylizedPoint[] = [];
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          let rSum = 0;
+          let gSum = 0;
+          let bSum = 0;
+          let count = 0;
+
+          const startX = Math.floor(x * cellW);
+          const startY = Math.floor(y * cellH);
+          const endX = Math.min(Math.floor((x + 1) * cellW), width);
+          const endY = Math.min(Math.floor((y + 1) * cellH), height);
+
+          for (let py = startY; py < endY; py++) {
+            for (let px = startX; px < endX; px++) {
+              const idx = (py * width + px) * 4;
+              rSum += data[idx];
+              gSum += data[idx + 1];
+              bSum += data[idx + 2];
+              count++;
+            }
+          }
+
+          if (count === 0) continue;
+          const r = rSum / count;
+          const g = gSum / count;
+          const b = bSum / count;
+
+          const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          const intensity = 1 - brightness;
+
+          if (intensity < 0.12) continue;
+
+          const jitterX = (Math.random() - 0.5) * cellW * 0.4;
+          const jitterY = (Math.random() - 0.5) * cellH * 0.4;
+
+          newPoints.push({
+            x: (x + 0.5) * cellW + jitterX,
+            y: (y + 0.5) * cellH + jitterY,
+            radius: (Math.max(intensity, 0.15) * Math.min(cellW, cellH)) / 2.4,
+            opacity: 0.35 + intensity * 0.65,
+          });
+        }
+      }
+
+      setDimensions({ width, height });
+      setPoints(newPoints);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!objectUrl) return;
+
+    const img = new Image();
+
+    img.onload = () => {
+      generatePointsFromImage(img);
+    };
+    img.onerror = () => {
+      setError("Could not read image. Try a different file.");
+    };
+    img.src = objectUrl;
+  }, [objectUrl, generatePointsFromImage]);
+
+  useEffect(() => {
+    if (!canvasRef.current || !points || !dimensions) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
+
+    ctx.fillStyle = BACKGROUND_COLOR;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = FOREGROUND_COLOR;
+
+    for (const p of points) {
+      ctx.globalAlpha = p.opacity;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+  }, [points, dimensions]);
+
+  const handleDownload = useCallback(() => {
+    if (!canvasRef.current) return;
+    const link = document.createElement("a");
+    link.download = "cursorified.png";
+    link.href = canvasRef.current.toDataURL("image/png");
+    link.click();
+  }, []);
+
+  const hasResult = !!points && !!dimensions;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-dvh bg-black text-zinc-100">
+      <main className="mx-auto grid min-h-dvh max-w-6xl grid-cols-1 gap-10 px-4 py-8 sm:px-6 sm:py-10 lg:grid-cols-[1.1fr_minmax(0,1.4fr)] lg:items-center lg:py-16">
+        <HeroPanel error={error} />
+
+        <UploaderPanel
+          objectUrl={objectUrl}
+          hasResult={hasResult}
+          canvasRef={canvasRef}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onFileChange={handleFileChange}
+          onClear={() => {
+            setPoints(null);
+            setDimensions(null);
+            setError(null);
+            if (objectUrl) {
+              URL.revokeObjectURL(objectUrl);
+              setObjectUrl(null);
+            }
+          }}
+          onDownload={handleDownload}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
       </main>
     </div>
   );
