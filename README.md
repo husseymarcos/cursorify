@@ -13,9 +13,13 @@ Turn any image into a high‑contrast, pixel‑style composition (a dense grid o
 
 Original vs. Cursorified output for the same image:
 
-| Original image | Cursorified image |
-| ------------- | ----------------- |
-| ![Original example](docs/original.jpg) | ![Cursorified example](docs/cursorified.png) |
+**Original image**
+
+![Original example](docs/original.jpg)
+
+**Cursorified image**
+
+![Cursorified example](docs/cursorified.png)
 
 ### Getting started
 
