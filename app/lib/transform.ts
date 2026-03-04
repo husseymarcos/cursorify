@@ -6,7 +6,7 @@ export type StylizedPoint = {
 };
 
 const MAX_PREVIEW_SIZE = 560;
-const GRID_SIZE = 112;
+const GRID_SIZE = 128;
 
 export function generateStylizedPoints(img: HTMLImageElement): {
   points: StylizedPoint[];
@@ -77,9 +77,7 @@ export function generateStylizedPoints(img: HTMLImageElement): {
       const b = bSum / count;
 
       const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      let intensity = 1 - brightness;
-
-      intensity = Math.pow(intensity, 1.1);
+      const intensity = Math.pow(1 - brightness, 1.2);
 
       intensities[y * cols + x] = intensity;
       if (intensity < minI) minI = intensity;
@@ -97,19 +95,28 @@ export function generateStylizedPoints(img: HTMLImageElement): {
       if (raw <= 0) continue;
 
       const normalized = (raw - minI) / range;
-      if (normalized < 0.08) continue;
+      if (normalized < 0.1) continue;
 
-      const jitterX = (Math.random() - 0.5) * cellW * 0.2;
-      const jitterY = (Math.random() - 0.5) * cellH * 0.2;
+      const baseSize = Math.min(cellW, cellH) / 2;
 
-      const baseSize = Math.min(cellW, cellH);
-      const radius = (0.12 + normalized * 0.88) * (baseSize / 2.2);
+      let radiusFactor: number;
+      if (normalized < 0.3) {
+        radiusFactor = 0.35;
+      } else if (normalized < 0.55) {
+        radiusFactor = 0.55;
+      } else if (normalized < 0.8) {
+        radiusFactor = 0.75;
+      } else {
+        radiusFactor = 0.96;
+      }
+
+      const radius = baseSize * radiusFactor;
 
       points.push({
-        x: (x + 0.5) * cellW + jitterX,
-        y: (y + 0.5) * cellH + jitterY,
+        x: (x + 0.5) * cellW,
+        y: (y + 0.5) * cellH,
         radius,
-        opacity: 0.35 + normalized * 0.6,
+        opacity: 1,
       });
     }
   }

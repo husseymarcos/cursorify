@@ -12,6 +12,7 @@ const FOREGROUND_COLOR = "#f5f5f5";
 
 export default function Home() {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [originalName, setOriginalName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [points, setPoints] = useState<StylizedPoint[] | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -26,18 +27,22 @@ export default function Home() {
     };
   }, [objectUrl]);
 
-  const handleFileChange = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const f = files[0];
-    if (!f.type.startsWith("image/")) {
-      setError("Please choose an image file.");
-      return;
-    }
-    setError(null);
-    if (objectUrl) URL.revokeObjectURL(objectUrl);
-    setObjectUrl(URL.createObjectURL(f));
-    setPoints(null);
-  }, [objectUrl]);
+  const handleFileChange = useCallback(
+    (files: FileList | null) => {
+      if (!files || files.length === 0) return;
+      const f = files[0];
+      if (!f.type.startsWith("image/")) {
+        setError("Please choose an image file.");
+        return;
+      }
+      setError(null);
+      setOriginalName(f.name);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setObjectUrl(URL.createObjectURL(f));
+      setPoints(null);
+    },
+    [objectUrl],
+  );
 
   const handleDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -102,11 +107,23 @@ export default function Home() {
 
   const handleDownload = useCallback(() => {
     if (!canvasRef.current) return;
+
     const link = document.createElement("a");
-    link.download = "cursorified.png";
+
+    if (originalName) {
+      const lastDot = originalName.lastIndexOf(".");
+      const base =
+        lastDot > 0 ? originalName.slice(0, lastDot) : originalName;
+      const ext =
+        lastDot > 0 ? originalName.slice(lastDot) : ".png";
+      link.download = `${base}-cursorified${ext}`;
+    } else {
+      link.download = "cursorified.png";
+    }
+
     link.href = canvasRef.current.toDataURL("image/png");
     link.click();
-  }, []);
+  }, [originalName]);
 
   const hasResult = !!points && !!dimensions;
 
@@ -130,6 +147,7 @@ export default function Home() {
               URL.revokeObjectURL(objectUrl);
               setObjectUrl(null);
             }
+            setOriginalName(null);
           }}
           onDownload={handleDownload}
         />
